@@ -1,0 +1,70 @@
+name: LINE通知
+
+on:
+  schedule:
+    # UTC で指定する。JST は +9時間。
+    #   23:00 UTC = 翌 08:00 JST
+    # ⚠️ GitHub Actions の schedule は混雑時に数十分ずれる（仕様）。
+    - cron: '0 23 * * *'
+  workflow_dispatch:
+    inputs:
+      date:
+        description: 'この日で判定する（例 2026-06-23）。空なら今日'
+        required: false
+        default: ''
+      dry_run:
+        description: 'LINEに送らず、ログに出すだけにする'
+        type: boolean
+        required: false
+        default: false
+      only:
+        description: 'このチェッカーだけ動かす（ファイル名から .py を取ったもの）'
+        required: false
+        default: ''
+
+# state.json を書き戻すため書き込み権限が要る
+permissions:
+  contents: write
+
+concurrency:
+  group: line-notify
+  cancel-in-progress: false
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: 通知をまわす
+        env:
+          LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
+          LINE_TO_USER_ID: ${{ secrets.LINE_TO_USER_ID }}
+        run: |
+          ARGS=""
+          if [ -n "${{ inputs.date }}" ]; then ARGS="$ARGS --date ${{ inputs.date }}"; fi
+          if [ "${{ inputs.dry_run }}" = "true" ]; then ARGS="$ARGS --dry-run"; fi
+          if [ -n "${{ inputs.only }}" ]; then ARGS="$ARGS --only ${{ inputs.only }}"; fi
+          python3 run.py $ARGS
+
+      - name: 通知済みの記録を残す
+        # 送信が成功したときだけ state.json が更新される
+        if: success()
+        run: |
+          if [ -n "$(git status --porcelain state.json)" ]; then
+            git config user.name  "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add state.json
+            git commit -m "通知済みの記録を更新"
+            git push
+          else
+            echo "記録に変更なし"
+          fi

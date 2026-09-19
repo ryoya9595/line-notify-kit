@@ -1,0 +1,5 @@
+__pycache__/
+.DS_Store
+.env
+# 実際に動かしたときに生成される記録（配布物ではない）
+base/state.json

@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LINE通知キット｜自分専用の通知を、自分で作る</title>
+<meta name="description" content="リマインド・期限・新着・集計・やり忘れ。6つの型から選んで、自分専用のLINE通知を作る土台。Claudeの有料プランは不要。費用0円。">
+<style>
+  :root{
+    --ground:#f7f8fb; --panel:#ffffff; --panel-2:#eef0f7;
+    --ink:#1e2233; --muted:#646b85; --line:#e0e4ef;
+    --indigo:#3f4d8f; --indigo-soft:#5f6db0; --amber:#a8781f; --rose:#ab5566;
+    --shadow:0 1px 2px rgba(30,35,60,.05),0 8px 30px rgba(30,35,60,.07);
+    --radius:16px;
+    --sans:"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP",system-ui,sans-serif;
+    color-scheme:light;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--ground)}
+  .wrap{font-family:var(--sans);color:var(--ink);background:var(--ground);-webkit-font-smoothing:antialiased;line-height:1.75;padding:clamp(20px,5vw,64px) clamp(16px,5vw,32px)}
+  .page{max-width:980px;margin:0 auto}
+  .eyebrow{font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:var(--amber);font-weight:800;margin:0 0 14px}
+  h1{font-size:clamp(34px,6vw,58px);line-height:1.08;letter-spacing:-.02em;margin:0 0 18px;font-weight:900;text-wrap:balance}
+  h2{font-size:clamp(22px,3.4vw,30px);line-height:1.25;margin:0 0 18px;font-weight:800;letter-spacing:-.01em}
+  h3{font-size:16px;margin:0 0 8px;font-weight:800}
+  p{margin:0 0 14px}
+  .lead{font-size:clamp(16px,2.3vw,19px);color:var(--muted);max-width:34em;margin:0}
+  section{margin:clamp(44px,7vw,76px) 0}
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.92em;background:var(--panel-2);padding:2px 6px;border-radius:5px}
+
+  .hero{display:grid;grid-template-columns:1.15fr .85fr;gap:clamp(24px,4vw,48px);align-items:center}
+  @media (max-width:760px){.hero{grid-template-columns:1fr}}
+
+  .phone{background:linear-gradient(170deg,#7c8fa8,#5d6f88);border-radius:26px;padding:12px;box-shadow:var(--shadow);max-width:340px;width:100%;margin:0 auto}
+  .phone-head{color:#fff;font-size:12px;font-weight:700;padding:4px 8px 10px;opacity:.95}
+  .phone-body{background:#8fa1b8;border-radius:16px;padding:14px 12px 18px}
+  .b{background:#fff;border-radius:4px 16px 16px 16px;padding:12px 14px;font-size:12.5px;line-height:1.75;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+  .b-title{font-weight:800;margin-bottom:6px}
+  .b-sub{color:#646b85;font-size:11.5px;padding-left:1em}
+  .sep{color:#c8cede;text-align:center;margin:10px 0;font-size:10px;letter-spacing:.3em}
+  .tstamp{font-size:10.5px;color:rgba(255,255,255,.8);margin-top:5px}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:clamp(20px,3.2vw,30px);box-shadow:var(--shadow)}
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media (max-width:760px){.grid-2{grid-template-columns:1fr}}
+
+  .note{border-left:4px solid var(--rose);background:#fdf6f7;border-radius:0 12px 12px 0;padding:18px 22px}
+  .note.indigo{border-left-color:var(--indigo);background:#f1f3fa}
+  .note h3{color:var(--rose)}
+  .note.indigo h3{color:var(--indigo)}
+
+  .steps{counter-reset:s;display:grid;gap:14px}
+  .step{display:grid;grid-template-columns:44px 1fr;gap:16px;align-items:start;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:20px 22px;box-shadow:var(--shadow)}
+  .step::before{counter-increment:s;content:counter(s);width:36px;height:36px;border-radius:50%;background:var(--indigo);color:#fff;display:grid;place-items:center;font-weight:800;font-size:15px}
+  .step p{margin:0;color:var(--muted);font-size:14.5px}
+  .step strong{color:var(--ink)}
+
+  .btn{display:inline-flex;align-items:center;gap:8px;background:var(--indigo);color:#fff;text-decoration:none;padding:12px 20px;border-radius:999px;font-weight:800;font-size:14.5px;border:0;cursor:pointer;box-shadow:0 2px 10px rgba(63,77,143,.26);transition:transform .12s ease,box-shadow .12s ease}
+  .btn:hover{transform:translateY(-1px);box-shadow:0 4px 16px rgba(63,77,143,.32)}
+  .btn.ghost{background:var(--panel);color:var(--indigo);border:1.5px solid var(--indigo);box-shadow:none}
+  .btn-row{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-top:10px}
+  .filesize{font-size:12.5px;color:var(--muted)}
+
+  pre{background:#222738;color:#e8eaf3;border-radius:12px;padding:18px 20px;overflow-x:auto;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;line-height:1.75;margin:0;white-space:pre-wrap;word-break:break-word}
+  details{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 18px;margin-top:14px}
+  summary{cursor:pointer;font-weight:700;font-size:14.5px}
+  details[open] summary{margin-bottom:12px}
+
+  .tbl{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}
+  .scroll{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-size:14.5px}
+  th,td{text-align:left;padding:12px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{background:var(--panel-2);font-weight:800;font-size:13.5px}
+  tr:last-child td{border-bottom:0}
+  .lv{font-weight:800;color:var(--indigo);white-space:nowrap}
+  .star{color:var(--amber);font-size:12.5px;white-space:nowrap}
+
+  ul.clean{list-style:none;padding:0;margin:0;display:grid;gap:10px}
+  ul.clean li{padding-left:28px;position:relative;font-size:14.5px}
+  ul.clean li::before{position:absolute;left:0;top:0;font-weight:800}
+  ul.yes li::before{content:"✓";color:var(--indigo)}
+  ul.no li::before{content:"✕";color:var(--muted)}
+
+  footer{border-top:1px solid var(--line);margin-top:clamp(48px,8vw,90px);padding-top:26px;color:var(--muted);font-size:13.5px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="page">
+
+  <div class="hero">
+    <div>
+      <p class="eyebrow">LINE通知キット</p>
+      <h1>自分専用の通知を、<br>自分で作る。</h1>
+      <p class="lead">
+        リマインド・期限・新着・集計・やり忘れ。<strong>6つの型</strong>から選んで、自分に必要な通知だけを作れます。
+        何本増やしても、届くのは<strong>1通のまま</strong>。
+      </p>
+      <div class="btn-row">
+        <a class="btn" href="#install">導入のしかたを見る</a>
+        <span class="filesize">費用0円／Claudeの有料プラン不要</span>
+      </div>
+    </div>
+    <div class="phone">
+      <div class="phone-head">🔔 通知</div>
+      <div class="phone-body">
+        <div class="b">
+          <div class="b-title">🔔 今日のリマインド</div>
+          ・請求書の送付日です
+          <div class="sep">━━━━━━</div>
+          <div class="b-title">⏰ 期限が近いもの（1件）</div>
+          ・example.com の更新
+          <div class="b-sub">あと7日（11/30）</div>
+          <div class="sep">━━━━━━</div>
+          <div class="b-title">⚠️ 議事録が見当たりません（2件）</div>
+          <div class="b-sub">9/16 山田さん／9/17 佐藤さん</div>
+        </div>
+        <div class="tstamp">朝 8:02</div>
+      </div>
+    </div>
+  </div>
+
+  <section>
+    <div class="note indigo">
+      <h3>Claudeの有料プランは要りません</h3>
+      <p style="margin-bottom:0">
+        設置したあとは <strong>GitHub だけで動き続けます</strong>。費用は0円です。
+        （導入のときだけ Claude Code や Codex を使います）
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <h2>6つの型から選ぶ</h2>
+    <p class="lead" style="margin-bottom:24px">
+      「何を通知したいか」が決まっていなくても大丈夫です。導入のときに<strong>「最近、忘れて困ったことはありますか？」</strong>から聞かれます。
+    </p>
+    <div class="tbl scroll">
+      <table>
+        <tr><th style="width:24%">型</th><th>例</th><th style="width:14%">難易度</th></tr>
+        <tr><td class="lv">定期リマインド</td><td>毎週火曜の薬、毎月25日の請求書、毎月1日の経費まとめ</td><td class="star">★☆☆☆☆</td></tr>
+        <tr><td class="lv">記念日・期限</td><td>ドメインの更新、お客様の誕生日、契約の満了、資格の更新</td><td class="star">★★☆☆☆</td></tr>
+        <tr><td class="lv">新着チェック</td><td>Chatworkの未読、ブログの更新、GitHubのリリース</td><td class="star">★★★☆☆</td></tr>
+        <tr><td class="lv">AIが探して選ぶ</td><td>条件に合う案件、競合の動き ／ <a href="https://ryoya9595.github.io/anken-watch/">専用キットあり</a></td><td class="star">★★★☆☆</td></tr>
+        <tr><td class="lv">集計レポート</td><td>先月の売上、先週のフォロワー増減、担当者別の件数</td><td class="star">★★★☆☆</td></tr>
+        <tr><td class="lv">突合チェック</td><td><strong>議事録の作り忘れ</strong>、入金の未確認、対応漏れ</td><td class="star">★★★★☆</td></tr>
+        <tr><td class="lv">LINEから操作</td><td>その場で登録、「完了」で督促を止める ／ <a href="https://ryoya9595.github.io/tanjobi-line/">専用キットあり</a></td><td class="star">★★★★☆</td></tr>
+      </table>
+    </div>
+    <p style="margin-top:18px;color:var(--muted);font-size:14.5px">
+      <strong style="color:var(--ink)">いちばん効果が出るのは「突合チェック」</strong>です。他の型が「知らせる」だけなのに対して、
+      これは<strong style="color:var(--ink)">人が気づけない見落としを見つけます</strong>。
+    </p>
+  </section>
+
+  <section>
+    <h2>増やしても、届くのは1通</h2>
+    <div class="grid-2">
+      <div class="card">
+        <h3>ファイルを1つ足すだけ</h3>
+        <p style="color:var(--muted);font-size:14.5px;margin:0">
+          <span class="mono">checkers/</span> にファイルを置けば、自動で見つかります。登録作業は要りません。
+          AIに「通知を1つ増やしたい」と言うだけで足せます。
+        </p>
+      </div>
+      <div class="card">
+        <h3>1本が壊れても、他は動く</h3>
+        <p style="color:var(--muted);font-size:14.5px;margin:0">
+          1つの通知でエラーが出ても、他の通知は届きます。壊れたものは ⚠️ として本文に出ます。
+          通知が丸ごと来なくなるより良い、という設計です。
+        </p>
+      </div>
+    </div>
+    <p style="margin-top:20px;color:var(--muted)">
+      <strong style="color:var(--ink)">通知することが無い日は、何も届きません。</strong>
+      「今日はありません」は送りません。毎日届くと、そのうち開かなくなるからです。
+    </p>
+  </section>
+
+  <section id="install">
+    <h2>導入は、このURLを貼るだけ</h2>
+    <p class="lead" style="margin-bottom:26px">
+      Claude Code や Codex に下の文をそのまま貼って送ってください。あとはAIが手順を読んで、最後まで案内します。
+    </p>
+
+    <div class="card" style="padding:0;overflow:hidden">
+      <pre id="startMsg" style="border-radius:0;margin:0">このページを読んで、LINE通知の導入を手伝ってください。
+https://ryoya9595.github.io/line-notify-kit/
+
+ページの「AIエージェント向けの案内」に沿って、1ステップずつ進めてください。
+何を通知するかは、シートに沿って質問してください。まず1本だけ作りたいです。
+わからないことは私に質問してください。パスワードは入力しないでください。</pre>
+      <div style="padding:16px 20px">
+        <button class="btn" id="copyStart" type="button">📋 この文をコピー</button>
+      </div>
+    </div>
+
+    <div class="steps" style="margin-top:26px">
+      <div class="step">
+        <div>
+          <h3>上の文を AI に貼って送る</h3>
+          <p>Zipのダウンロードも解凍も、<strong>AIがやります</strong>。</p>
+        </div>
+      </div>
+      <div class="step">
+        <div>
+          <h3>「最近、忘れて困ったこと」を答える</h3>
+          <p>そこから作るものが決まります。<strong>まず1本だけ</strong>作ります。</p>
+        </div>
+      </div>
+      <div class="step">
+        <div>
+          <h3>ログインとトークンの貼り付けだけ担当する</h3>
+          <p>LINE・GitHubの画面はAIが進めます。合計<strong>1時間ほど</strong>。</p>
+        </div>
+      </div>
+    </div>
+
+    <details>
+      <summary>AIが「ページを取得できません」と言ったら</summary>
+      <p style="margin:10px 0 0;color:var(--muted);font-size:14.5px">
+        使っている環境によっては、AIが外部のページにアクセスできないことがあります。
+        その場合は、<strong>Zipをご自身でダウンロードして、チャットにドラッグ＆ドロップ</strong>してください。
+      </p>
+      <div class="btn-row">
+        <a class="btn ghost" href="line-notify-kit.zip" download>⬇ line-notify-kit.zip</a>
+        <span class="filesize">約41KB</span>
+      </div>
+      <p style="margin:14px 0 0;color:var(--muted);font-size:14.5px">
+        添付したら：<span class="mono">添付したZipの中の「導入手順_AIに読ませる.md」を読んで進めてください。</span>
+      </p>
+    </details>
+  </section>
+
+  <section>
+    <h2>用意するもの</h2>
+    <div class="tbl scroll">
+      <table>
+        <tr><th style="width:32%">必要なもの</th><th>何に使うか</th></tr>
+        <tr><td><strong>GitHubアカウント</strong></td><td>毎日ここで動きます（無料）</td></tr>
+        <tr><td>LINE公式アカウント</td><td><strong>通知用に新しく作ります</strong>（無料）。いま配信に使っているものには触りません</td></tr>
+        <tr><td>Claude Code または Codex</td><td>導入のときだけ使います</td></tr>
+      </table>
+    </div>
+    <div class="note" style="margin-top:22px">
+      <h3>いま使っているLINE公式アカウントは触りません</h3>
+      <p style="margin-bottom:0">
+        エルメやLステップで配信している公式アカウントがある場合、そちらの設定は開きません。通知用に新しいアカウントを1つ作ります。
+        既存アカウントのトークンを作り直すと、<strong>配信ツール側が止まる</strong>ことがあるためです。
+        作業中に「<span class="mono">再発行</span>」というボタンが見えたら、別のアカウントを開いている合図です。押さずに止まってください。
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <h2>やること・やらないこと</h2>
+    <div class="grid-2">
+      <div class="card">
+        <ul class="clean yes">
+          <li>毎日きまった時刻に、決めた条件で判定する</li>
+          <li>通知が何本あっても<strong>1通にまとめる</strong></li>
+          <li>通知することが無ければ、何も送らない</li>
+          <li>1本が壊れても、他は届ける</li>
+          <li>一度知らせたものは、二度知らせない</li>
+        </ul>
+      </div>
+      <div class="card">
+        <ul class="clean no">
+          <li>いま使っている配信ツールの設定を変える</li>
+          <li>通知することが無い日に「ありません」と送る</li>
+          <li>外部サービスを短い間隔で何度も叩く</li>
+          <li>最初から何本も作る（1本ずつ増やします）</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="for-agents">
+    <h2>AIエージェント向けの案内</h2>
+    <p class="lead" style="margin-bottom:22px">
+      ここから下は、Claude Code や Codex が読む部分です。利用者の方は読み飛ばしてかまいません。
+    </p>
+
+    <div class="card">
+      <p style="font-weight:800;margin-bottom:14px">AIエージェントの方へ</p>
+
+      <h3 style="margin-top:22px">1. キットを手に入れる</h3>
+      <p style="font-size:14.5px;color:var(--muted)">
+        Zipが添付されていれば解凍してください。無ければ下のコマンドで取得します。
+        <strong>取得できなかった場合は何度も試さず、利用者にZipの添付を頼んでください。</strong>
+      </p>
+      <pre style="font-size:12px"># Mac / Linux
+cd ~/Desktop && curl -sSL -o line-notify-kit.zip https://ryoya9595.github.io/line-notify-kit/line-notify-kit.zip && unzip -q line-notify-kit.zip
+
+# Windows（PowerShell）
+Set-Location "$HOME\Desktop"; Invoke-WebRequest -Uri https://ryoya9595.github.io/line-notify-kit/line-notify-kit.zip -OutFile line-notify-kit.zip; Expand-Archive line-notify-kit.zip -DestinationPath .</pre>
+
+      <h3 style="margin-top:22px">2. 手順書を読む</h3>
+      <p style="font-size:14.5px;color:var(--muted)">
+        解凍してできた <span class="mono">line-notify-kit/導入手順_AIに読ませる.md</span> を読み、
+        <strong>STEP 0 〜 STEP 11 のとおりに進めてください。</strong>このページではなく、そちらが手順の正本です。
+      </p>
+
+      <h3 style="margin-top:22px">3. 最初にやること</h3>
+      <ul class="clean yes" style="margin-top:10px">
+        <li><span class="mono">何を通知するか決めるシート.md</span> のQ1「最近、忘れて困ったことはありますか？」から聞く</li>
+        <li>白紙で「何を通知したいですか？」と聞かない。答えられません</li>
+        <li>🔴 <strong>作るのは1本だけ。</strong>複数出てきたら「いちばん困ったのはどれですか？」で絞る</li>
+        <li><span class="mono">通知の型カタログ.md</span> で型を判定し、利用者に確認してから進む</li>
+      </ul>
+
+      <h3 style="margin-top:22px">4. 器が違うものは、専用キットを案内する</h3>
+      <ul class="clean no" style="margin-top:10px">
+        <li><strong>AIが探して選ぶもの</strong>（案件・情報収集。取得先が決まっていない）→ <a href="https://ryoya9595.github.io/anken-watch/">anken-watch</a>（Claude Pro以上）</li>
+        <li><strong>LINEから登録・操作したいもの</strong> → <a href="https://ryoya9595.github.io/tanjobi-line/">tanjobi-line</a>（Vercelが必要）</li>
+      </ul>
+      <p style="font-size:14px;color:var(--muted);margin-top:8px">無理にこのキットで作らないでください。</p>
+
+      <h3 style="margin-top:22px">5. 守ること</h3>
+      <ul class="clean no" style="margin-top:10px">
+        <li>利用者のパスワード・2段階認証コードを入力しない</li>
+        <li>トークンをチャットに書き出さない／ファイルに保存しない／コミットしない</li>
+        <li><strong>いま使っているLINE公式アカウント（エルメ・Lステップ）に触らない</strong></li>
+        <li>個人情報が入るならリポジトリは Private</li>
+        <li>チェッカーは<strong>通知することが無いとき必ず None を返す</strong>（「ありません」を返させない）</li>
+        <li>通知済みの記録を<strong>送信の前に確定させない</strong>（失敗した回の分が二度と通知されなくなる）</li>
+        <li>使わない <span class="mono">example_*.py</span> は削除する（残すと余計な通知が届く）</li>
+      </ul>
+
+      <p style="font-size:14px;color:var(--muted);margin:22px 0 0">
+        つまずきやすいのは、①最初から何本も作ろうとする ②友だち追加の忘れ
+        ③cronのUTC間違い（曜日もずれる） ④Workflow permissions が Read のまま、の4つです。
+      </p>
+    </div>
+  </section>
+
+  <footer>
+    <p style="margin:0">
+      くわしい手順は、Zipの中の「はじめにお読みください.md」「通知の型カタログ.md」に入っています。<br>
+      人に渡すときは、このページのURLを送るだけでOKです。
+    </p>
+  </footer>
+
+</div>
+</div>
+<script>
+(function(){
+  function bind(btnId,preId){
+    var btn=document.getElementById(btnId), msg=document.getElementById(preId);
+    if(!btn||!msg)return;
+    btn.addEventListener('click',function(){
+      var text=msg.textContent||msg.innerText;
+      var ok=function(){var o=btn.innerHTML;btn.textContent='✓ コピーしました';setTimeout(function(){btn.innerHTML=o;},1700);};
+      var fb=function(){var ta=document.createElement('textarea');ta.value=text;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.focus();ta.select();try{document.execCommand('copy');}catch(e){}document.body.removeChild(ta);ok();};
+      if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(text).then(ok,fb);}else{fb();}
+    });
+  }
+  bind('copyStart','startMsg');
+})();
+</script>
+</body>
+</html>
